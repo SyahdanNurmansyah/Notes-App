@@ -3,7 +3,6 @@ const { nanoid } = require('nanoid');
 const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
 const { mapDBNotesToModel } = require('../../utils');
-const { values } = require('lodash');
 const AuthorizationError = require('../../exceptions/AuthorizationsError');
 
 class NotesService {
