@@ -3,21 +3,23 @@ const { nanoid } = require('nanoid');
 const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
 const { mapDBNotesToModel } = require('../../utils');
+const { values } = require('lodash');
+const AuthorizationError = require('../../exceptions/AuthorizationsError');
 
 class NotesService {
     constructor() {
         this._pool = new Pool();
     };
     
-    async addNote({ title, body, tags }) {
+    async addNote({ title, body, tags, owner }) {
 
         const id = `note-${nanoid(16)}`;
         const createdAt = new Date().toISOString();
         const updatedAt = createdAt;
 
         const query = {
-            text: 'INSERT INTO notes VALUES($1, $2, $3, $4, $5, $6) RETURNING id',
-            values: [id, title, body, tags, createdAt, updatedAt],
+            text: 'INSERT INTO notes VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+            values: [id, title, body, tags, createdAt, updatedAt, owner],
         };
 
         const result = await this._pool.query(query);
@@ -29,10 +31,14 @@ class NotesService {
         return result.rows[0].id;
     };
 
-    async getNotes() {
+    async getNotes(owner) {
 
-        const result = await this._pool.query('SELECT * FROM notes');
-        
+        const query = {
+            text: 'SELECT * FROM notes WHERE owner = $1',
+            values: [owner],
+        }
+
+        const result = await this._pool.query(query);
         return result.rows.map(mapDBNotesToModel);
     };
 
@@ -80,6 +86,32 @@ class NotesService {
             throw new NotFoundError('Catatan gagal dihapus. Id tidak ditemukan');
         };
     };
+
+    async verifyNoteOwner(id, owner) {
+        const query = {
+            text: 'SELECT * FROM notes WHERE id = $1',
+            values: [id],
+        };
+
+        const result = await this._pool.query(query);
+
+        // Bila objek note tidak ditemukan, maka throw NotFoundError
+
+        if (!result.rows.length) {
+            throw new NotFoundError('Catatan tidak ditemmukan');
+        }
+
+        // Bila ditemukan, lakukan pengecekan kesesuaian owner-nya
+
+        const note = result.rows[0];
+
+        // Bila owner tidak sesuai, maka throw AuthorizationError
+
+        if (note.owner !== owner) {
+            throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
+        }
+    };
+
 };
 
 module.exports = NotesService;
