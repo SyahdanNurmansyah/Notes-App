@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "notes:prod": "NODE_ENV=production node ./src/server.js",
-    "notes:dev": "nodemon ./src/server",
+    "notes:dev": "nodemon ./src/server.js",
     "migrate": "node-pg-migrate"
   },
   "keywords": [],
