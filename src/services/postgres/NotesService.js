@@ -1,13 +1,14 @@
 const { Pool } = require('pg');
 const { nanoid } = require('nanoid');
+const { mapDBNotesToModel } = require('../../utils');
 const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
-const { mapDBNotesToModel } = require('../../utils');
 const AuthorizationError = require('../../exceptions/AuthorizationsError');
 
 class NotesService {
-    constructor() {
+    constructor(collaborationService) {
         this._pool = new Pool();
+        this._collaborationService = collaborationService;
     };
     
     async addNote({ title, body, tags, owner }) {
@@ -33,7 +34,7 @@ class NotesService {
     async getNotes(owner) {
 
         const query = {
-            text: 'SELECT * FROM notes WHERE owner = $1',
+            text: `SELECT notes.* FROM notes LEFT JOIN collaborations ON collaborations.note_id = notes.id WHERE notes.owner = $1 OR collaborations.user_id = $1 GROUP BY notes.id`,
             values: [owner],
         }
 
@@ -44,7 +45,7 @@ class NotesService {
     async getNoteById(id) {
 
         const query = {
-            text: 'SELECT * FROM notes WHERE id = $1',
+            text: `SELECT notes.*, users.username FROM notes LEFT JOIN users ON users.id = notes.owner WHERE notes.id = $1`,
             values: [id],
         };
 
@@ -111,6 +112,26 @@ class NotesService {
         }
     };
 
+    // Fungsi ini akan memeriksa hak akses userId terhadap noteId melalui fungsi verifyNoteOwner.
+    async verifyNoteAccess (noteId, userId) {
+    
+        // Bila userId tersebut merupakan owner dari noteId maka ia akan lolos verifikasi. Bila gagal, proses verifikasi owner membangkitkan eror (gagal) dan masuk ke block catch
+        try {
+            await this.verifyNoteOwner(noteId, userId);
+        }   catch (error) {
+            if (error instanceof NotFoundError) {
+                throw error;
+            };
+            // Bila pengguna seorang kolaborator, proses verifikasi akan lolos.
+            try {
+                await this._collaborationService.verifyCollaborator(noteId, userId);
+    
+            // Namun jika bukan, maka fungsi verifyNoteAccess gagal dan throw kembali error (AuthorizationError).
+            }   catch {
+                throw error; // AuthorizationError
+            };
+        };
+    };
 };
 
 module.exports = NotesService;
