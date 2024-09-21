@@ -20,7 +20,7 @@ class CollaborationsService {
         const result = await this._pool.query(query);
 
         // Jika nilainya nol, maka throw InvariantError
-        if(!result.rows.length) {
+        if (!result.rows.length) {
             throw new InvariantError ('Kolaborator gagal ditambahkan');
         };
 
@@ -39,8 +39,6 @@ class CollaborationsService {
         if (!result.rows.length) {
             throw new InvariantError ('Kolaborator gagal dihapus');
         };
-
-        return result.rows[0].id;
     };
 
     async verifyCollaborator (noteId, userId) {
